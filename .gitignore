@@ -1,0 +1,16 @@
+# Security: Never upload API keys
+.env
+api_keys.txt
+secrets.json
+
+# Dependencies: The massive folder of libraries should not be uploaded
+venv/
+env/
+.venv/
+
+# Python compiled files (Junk files created when running code)
+__pycache__/
+*.pyc
+
+# System junk
+.DS_Store
