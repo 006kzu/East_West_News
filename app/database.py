@@ -5,12 +5,11 @@ DB_NAME = "peripheral_news.db"
 
 
 def init_db():
-    """Creates the table if it doesn't exist."""
+    """Creates tables for BOTH Academic Papers and Global News."""
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
 
-    # We make 'paper_id' the PRIMARY KEY.
-    # This guarantees we can NEVER have duplicates.
+    # 1. Academic Table (Existing)
     c.execute('''
         CREATE TABLE IF NOT EXISTS academic_papers (
             paper_id TEXT PRIMARY KEY,
@@ -24,12 +23,29 @@ def init_db():
             added_date TEXT
         )
     ''')
+
+    # 2. Global News Table (New)
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS global_news (
+            link TEXT PRIMARY KEY,
+            source TEXT,       -- e.g., "Xinhua", "Kommersant"
+            title TEXT,
+            summary TEXT,      -- The AI translation/summary
+            original_date TEXT,
+            added_date TEXT,
+            region TEXT        -- "East" (China/Russia)
+        )
+    ''')
+
     conn.commit()
     conn.close()
 
+# ==========================
+# 🎓 ACADEMIC FUNCTIONS
+# ==========================
+
 
 def paper_exists(paper_id):
-    """Checks if we already processed this paper."""
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
     c.execute("SELECT 1 FROM academic_papers WHERE paper_id = ?", (paper_id,))
@@ -39,10 +55,8 @@ def paper_exists(paper_id):
 
 
 def save_paper(paper_data, review_data, field):
-    """Saves a REVIEWED paper to the DB."""
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
-
     try:
         c.execute('''
             INSERT INTO academic_papers 
@@ -56,32 +70,76 @@ def save_paper(paper_data, review_data, field):
             review_data['score'],
             review_data['is_major'],
             review_data['layman_summary'],
-            paper_data['publicationDate'],
+            paper_data.get('publicationDate', 'Unknown'),
             datetime.datetime.now().strftime("%Y-%m-%d")
         ))
         conn.commit()
-        print(f"✅ Saved: {paper_data['title'][:30]}...")
     except sqlite3.IntegrityError:
-        print(f"⚠️ Duplicate skipped: {paper_data['title'][:30]}...")
+        pass
     finally:
         conn.close()
 
 
 def get_feed(field):
-    """Retrieves only the MAJOR papers for a specific field."""
     conn = sqlite3.connect(DB_NAME)
-    # Return dictionary-like rows
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
-
-    # Only get papers marked as 'is_major' (True)
     c.execute('''
         SELECT * FROM academic_papers 
-        WHERE field = ? AND is_major = 1 
+        WHERE field = ? 
         ORDER BY published_date DESC 
         LIMIT 20
     ''', (field,))
+    rows = c.fetchall()
+    conn.close()
+    return rows
 
+# ==========================
+# 🌍 GLOBAL NEWS FUNCTIONS
+# ==========================
+
+
+def news_exists(link):
+    """Checks if we already processed this news link."""
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    c.execute("SELECT 1 FROM global_news WHERE link = ?", (link,))
+    exists = c.fetchone() is not None
+    conn.close()
+    return exists
+
+
+def save_news(article_data, analysis_text):
+    """Saves a translated/analyzed news article."""
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    try:
+        c.execute('''
+            INSERT INTO global_news (link, source, title, summary, original_date, added_date, region)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        ''', (
+            article_data['link'],
+            article_data['source'],
+            article_data['title'],
+            analysis_text,  # The AI output
+            # RSS feeds often lack clean dates, so we use today
+            datetime.datetime.now().strftime("%Y-%m-%d"),
+            datetime.datetime.now().strftime("%Y-%m-%d"),
+            "East"  # Default region for now
+        ))
+        conn.commit()
+    except sqlite3.IntegrityError:
+        pass  # Skip duplicates silently
+    finally:
+        conn.close()
+
+
+def get_global_news(limit=20):
+    """Fetches the latest global news for the frontend."""
+    conn = sqlite3.connect(DB_NAME)
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    c.execute('SELECT * FROM global_news ORDER BY added_date DESC LIMIT ?', (limit,))
     rows = c.fetchall()
     conn.close()
     return rows

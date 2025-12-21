@@ -1,55 +1,50 @@
 import streamlit as st
-import time
-from app.ingestion import fetch_latest_news
-from app.analysis import analyze_article
+from app.database import get_global_news
 
-# 1. Page Config (Tab title, icon)
-st.set_page_config(page_title="Peripheral News", page_icon="🌍")
+# 1. Page Config
+st.set_page_config(
+    page_title="Peripheral News",
+    page_icon="🌍",
+    layout="wide"
+)
 
-# 2. Header Section
-st.title("🌍 Peripheral News")
-st.markdown("""
-**Objective:** Bridge the information gap by translating and analyzing news from **China** and **Russia** for Western readers.
-""")
+# 2. Sidebar (Info Only)
+with st.sidebar:
+    st.title("🌍 Peripheral News")
+    st.markdown("Automated intelligence on the things that matter.")
+    st.divider()
+    st.info("💡 **Tip:** Go to the 'Academic Feed' page in the sidebar to see scientific papers.")
 
-# 3. The "Run" Button
-if st.button("🔄 Fetch & Analyze Latest News"):
+# 3. Main Dashboard
+st.title("🗺️ Global Intelligence Brief")
+st.markdown(
+    "Daily analysis of foreign media (Russia/China) translated and summarized for Western context.")
+st.divider()
 
-    # Create a placeholder for status updates
-    status_text = st.empty()
-    progress_bar = st.progress(0)
+# 4. Fetch Data from DB (Instant Load!)
+news_items = get_global_news(limit=20)
 
-    # Step 1: Ingestion
-    status_text.text("📡 Contacting foreign RSS feeds...")
-    # Get 3 articles total for the demo
-    raw_articles = fetch_latest_news(limit=3)
+if not news_items:
+    st.warning(
+        "⚠️ Database is empty. Please run `python run_news.py` in your terminal first.")
+else:
+    # 5. Display News Cards
+    for item in news_items:
+        with st.container():
+            col1, col2 = st.columns([3, 1])
 
-    if not raw_articles:
-        st.error("No articles found. Please check your connection.")
-    else:
-        st.success(
-            f"Found {len(raw_articles)} articles. Beginning analysis...")
-        time.sleep(1)  # Visual pause
+            with col1:
+                # Icon based on Source
+                icon = "🐻" if "Kommersant" in item['source'] else "🐉"
+                st.subheader(f"{icon} {item['source']}: {item['title']}")
+                st.caption(
+                    f"📅 Added: {item['added_date']} | 🔗 [Original Source]({item['link']})")
 
-        # Step 2: Analysis Loop
-        for i, article in enumerate(raw_articles):
-            # Update status
-            status_text.text(
-                f"🧠 Analyzing article {i+1}/{len(raw_articles)}: {article['title'][:30]}...")
-            progress_bar.progress((i) / len(raw_articles))
+                # The Analysis
+                st.markdown(item['summary'])
 
-            # Run the specific analysis
-            # We use a spinner so the user knows it's working
-            with st.spinner(f"Reading {article['source']}..."):
-                analysis = analyze_article(article)
+            with col2:
+                # Placeholder for future metadata tags
+                st.empty()
 
-            # Step 3: Display Results nicely
-            with st.expander(f"{article['source']}: {article['title']}", expanded=True):
-                st.markdown(analysis)
-                st.markdown(f"[🔗 Read Original Source]({article['link']})")
-
-            # Rate Limit Protection (Vital for Free Tier!)
-            time.sleep(4)
-
-        progress_bar.progress(100)
-        status_text.text("✅ Briefing Complete.")
+            st.divider()
