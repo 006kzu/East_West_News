@@ -1,51 +1,83 @@
-# East-West News Analyst 🌍
+Peripheral News 🧬
+Global Bio-Engineering Intelligence Dashboard
 
-A Python-based AI agent that bridges the information gap between Eastern and Western media. This tool ingests news from Chinese and Russian sources (via RSS), translates them, and uses an LLM to provide cultural context and "spin" analysis for English-speaking readers.
+Peripheral News is an open-source intelligence (OSINT) dashboard built with Python and Streamlit. It aggregates, filters, and visualizes high-impact developments in biomedical engineering, specifically focusing on the intersection of human biology and technology (BCI, Bionics, Medical Devices).
 
-## 🚀 Features
+🆕 New Architecture (v2.0)
+The application has been restructured to support a Split-State Navigation system. It now distinguishes between two primary data streams:
 
-- **Multi-Source Ingestion:** Fetches real-time headlines from sources like Xinhua and Kommersant.
-- **Smart Translation:** Goes beyond literal translation to capture nuance.
-- **Contextual Analysis:** Identifies potential bias, propaganda, or cultural references Westerners might miss.
-- **Daily Briefing:** (Planned) Automates a daily summary report.
+Global Intelligence: Policy, market movements, and geopolitical shifts in biotech.
 
-## 🛠️ Installation
+Academic Feed: Hard science, peer-reviewed literature, and pre-prints.
 
-1.  **Clone the repository**
+Features
+Split-Screen Home: A "Command Center" view that offers a side-by-side preview of both global news and academic papers, allowing users to choose their focus immediately.
 
-    ```bash
-    git clone [https://github.com/YOUR_USERNAME/East_West_News.git](https://github.com/YOUR_USERNAME/East_West_News.git)
-    cd East_West_News
-    ```
+Session-Based Navigation: Seamless state management allows users to switch contexts (e.g., from Home to the Academic Feed) via on-page buttons without losing their place.
 
-2.  **Set up the Virtual Environment**
+Grid Layout: A modern, space-efficient 3-column grid system for browsing article cards.
 
-    ```bash
-    python -m venv venv
+"Soft" UI Design: Custom CSS injection overrides standard Streamlit styling to create a professional, rounded aesthetic (15px radius on all elements) using a specific color palette (British Racing Green, Teal, Platinum).
 
-    # Windows:
-    venv\Scripts\activate
+AI-Ready Parsing: Built-in regex helper functions to parse structured AI summaries (Headline vs. Body).
 
-    # Mac/Linux:
-    source venv/bin/activate
-    ```
+Installation
+Clone the repository:
 
-3.  **Install Dependencies**
+Bash
 
-    ```bash
-    pip install -r requirements.txt
-    ```
+git clone https://github.com/yourusername/peripheral-news.git
+cd peripheral-news
+Create a virtual environment (Recommended):
 
-4.  **Configure Environment Variables**
-    Create a `.env` file in the root directory and add your keys:
-    ```text
-    OPENAI_API_KEY=your_key_here
-    ```
+Bash
 
-## 🏃 Usage
+python -m venv venv
+source venv/bin/activate # On Windows use `venv\Scripts\activate`
+Install dependencies:
 
-Run the main agent script:
+Bash
 
-```bash
-python main.py
-```
+pip install streamlit
+Usage
+Run the dashboard locally:
+
+Bash
+
+streamlit run app.py
+Navigation Guide
+Home: The landing page. View top-level metrics and a preview of both feeds. Click "View Full Feed" in either column to enter that specific mode.
+
+Sidebar: Use the radio menu to jump between views or filter data by date.
+
+Article Cards: Click on any card in the grid to expand the summary. Click the "Source Link" to view the original external document.
+
+Customization
+
+1. Styling (CSS)
+   All visual styling is contained in the st.markdown block at the top of app.py.
+
+Primary Color (Headings): #004225 (British Racing Green)
+
+Accent Color (Links/Borders): #008080 (Teal)
+
+Backgrounds: #A3AABE (Purple-Grey for Sidebar/Headers)
+
+2. Data Sources
+   The app currently uses mock data functions (get_global_news() and get_academic_feed()). To connect your real backend:
+
+Import your database connector in app.py.
+
+Replace the mock lists with SQL queries or API calls.
+
+Ensure your data dictionaries match the keys expected by the renderer: {'id', 'title', 'source', 'added_date', 'link'}.
+
+File Structure
+Plaintext
+
+peripheral-news/
+├── app.py # Main application entry point (UI & Logic)
+├── README.md # Documentation
+└── requirements.txt # Dependencies (streamlit)
+License
+MIT
