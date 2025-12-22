@@ -44,6 +44,66 @@ def init_db():
 # 🎓 ACADEMIC FUNCTIONS
 # ==========================
 
+# ==========================
+# 📊 DASHBOARD METRICS
+# ==========================
+
+
+def get_dashboard_stats(target_date):
+    """
+    Returns the counts needed for the top dashboard metrics.
+    """
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+
+    # 1. Global News Stats
+    c.execute("SELECT COUNT(*) FROM global_news")
+    global_total = c.fetchone()[0]
+
+    c.execute("SELECT COUNT(*) FROM global_news WHERE added_date = ?",
+              (target_date,))
+    global_today = c.fetchone()[0]
+
+    # 2. Academic Stats
+    c.execute("SELECT COUNT(*) FROM academic_papers")
+    academic_total = c.fetchone()[0]
+
+    c.execute(
+        "SELECT COUNT(*) FROM academic_papers WHERE added_date = ?", (target_date,))
+    academic_today = c.fetchone()[0]
+
+    conn.close()
+
+    return {
+        "global_total": global_total,
+        "global_today": global_today,
+        "academic_total": academic_total,
+        "academic_today": academic_today
+    }
+
+
+def get_latest_academic_preview():
+    """Fetches the single most recent academic paper for the dashboard card."""
+    conn = sqlite3.connect(DB_NAME)
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    # Order by added_date so we see what the bot just found
+    c.execute("SELECT * FROM academic_papers ORDER BY added_date DESC LIMIT 1")
+    row = c.fetchone()
+    conn.close()
+    return row
+
+
+def get_latest_news_preview():
+    """Fetches the single most recent news article for the dashboard card."""
+    conn = sqlite3.connect(DB_NAME)
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    c.execute("SELECT * FROM global_news ORDER BY added_date DESC LIMIT 1")
+    row = c.fetchone()
+    conn.close()
+    return row
+
 
 def paper_exists(paper_id):
     conn = sqlite3.connect(DB_NAME)
@@ -84,12 +144,15 @@ def get_feed(field):
     conn = sqlite3.connect(DB_NAME)
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
+
+    # MODIFIED QUERY: Added "AND score >= 7"
     c.execute('''
         SELECT * FROM academic_papers 
-        WHERE field = ? 
+        WHERE field = ? AND score >= 7
         ORDER BY published_date DESC 
         LIMIT 20
     ''', (field,))
+
     rows = c.fetchall()
     conn.close()
     return rows

@@ -1,52 +1,109 @@
 import streamlit as st
 import sqlite3
+import pandas as pd
+import altair as alt
 from app.database import get_feed
 from app.topics import TOPIC_HUBS
 
 st.set_page_config(page_title="Academic Feed", page_icon="🎓", layout="wide")
 
-st.title("🎓 Peripheral Academic Watch")
-st.markdown(
-    "Artificial Intelligence curation of the latest major scientific findings.")
+# --- CSS FOR ALIGNMENT ---
+st.markdown("""
+<style>
+    /* Center the chart in its column */
+    [data-testid="stAltairChart"] {
+        display: flex;
+        justify-content: center;
+        /* Push it down slightly to visually center it against the text */
+        margin-top: 10px; 
+    }
+    
+    /* Make the Impact Score label tiny and gray */
+    .impact-label {
+        text-align: center;
+        font-size: 10px;
+        color: #888;
+        line-height: 1;
+        margin-top: -5px; /* Pull it closer to the ring */
+    }
+</style>
+""", unsafe_allow_html=True)
 
-# 1. The Sidebar Filter
-# We use the "Hubs" to make a nice two-step selection
-selected_hub = st.sidebar.radio("Select Field Group", list(TOPIC_HUBS.keys()))
-selected_topic = st.sidebar.selectbox(
-    "Select Specific Topic", TOPIC_HUBS[selected_hub])
+# --- HELPER: MINIATURE RING CHART ---
 
+
+def make_impact_ring(score):
+    # Data: Score vs Rest
+    source = pd.DataFrame({
+        "Category": ["Impact", "Rest"],
+        "Value": [score, 10-score]
+    })
+
+    base = alt.Chart(source).encode(
+        theta=alt.Theta("Value", stack=True)
+    )
+
+    # The Ring (Smaller Radius)
+    pie = base.mark_arc(innerRadius=15, outerRadius=20).encode(
+        color=alt.Color("Category",
+                        scale=alt.Scale(domain=["Impact", "Rest"],
+                                        range=["#008080", "#E5E4E2"]),
+                        legend=None),
+        order=alt.Order("Category", sort="descending")
+    )
+
+    # The Text (Smaller Font)
+    text = base.mark_text(radius=0, size=12, color="#004225", fontStyle="bold", align="center", baseline="middle").encode(
+        text=alt.value(f"{score}")
+    )
+
+    # Combine (Smaller Canvas)
+    return (pie + text).properties(width=50, height=50)
+
+
+# --- SIDEBAR ---
+with st.sidebar:
+    st.page_link("app.py", label="Back to Dashboard", icon="🏠")
+    st.divider()
+    st.title("Filters")
+    selected_hub = st.radio("Field Group", list(TOPIC_HUBS.keys()))
+    selected_topic = st.selectbox("Topic", TOPIC_HUBS[selected_hub])
+
+# --- MAIN PAGE ---
+st.title(f"🎓 {selected_topic}")
+st.caption("Curated High-Impact Research (Score 7+)")
 st.divider()
-st.subheader(f"Latest in {selected_topic}")
 
 try:
-    # 2. Get Data for the selected topic
     papers = get_feed(selected_topic)
 
     if not papers:
-        st.info(
-            f"No major breakthroughs detected in {selected_topic} yet. Check back tomorrow!")
+        st.info(f"No high-impact papers found for {selected_topic} yet.")
 
-    # 3. Display Papers
     for paper in papers:
-        with st.container():
-            col1, col2 = st.columns([3, 1])
-            with col1:
-                st.markdown(f"### {paper['title']}")
-                st.caption(
-                    f"📅 {paper['published_date']} | Score: **{paper['score']}/10**")
+        with st.container(border=True):
+            # Tighter Column Ratio for small chart
+            col_text, col_chart = st.columns([0.9, 0.1])
 
-                # Color code the score
+            with col_text:
+                st.subheader(paper['title'])
+
+                # CONDITIONAL LABEL LOGIC
                 if paper['score'] >= 8:
-                    st.success(f"🌟 **MAJOR FINDING:** {paper['summary']}")
+                    label = "  |  🏆 **Major Breakthrough**"
                 else:
-                    st.info(f"**Summary:** {paper['summary']}")
+                    label = ""
 
-            with col2:
-                st.markdown(f"[**Read Full Paper**]({paper['url']})")
-                if paper['is_major']:
-                    st.write("🔥 Highly Innovative")
+                st.caption(f"📅 {paper['published_date']}{label}")
+                st.markdown(paper['summary'])
+                st.markdown(f"🔗 [Read Full Paper]({paper['url']})")
 
-            st.divider()
+            with col_chart:
+                ring = make_impact_ring(paper['score'])
+                st.altair_chart(ring, use_container_width=True)
+                # Tighter HTML label
+                st.markdown(
+                    "<div class='impact-label'>Impact<br>Score</div>", unsafe_allow_html=True)
 
 except sqlite3.OperationalError:
-    st.error("⚠️ Database not found. Please run the scout script.")
+    st.error("⚠️ Database not found.")
