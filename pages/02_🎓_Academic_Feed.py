@@ -7,33 +7,11 @@ from app.topics import TOPIC_HUBS
 
 st.set_page_config(page_title="Academic Feed", page_icon="🎓", layout="wide")
 
-# --- CSS FOR ALIGNMENT ---
-st.markdown("""
-<style>
-    /* Center the chart in its column */
-    [data-testid="stAltairChart"] {
-        display: flex;
-        justify-content: center;
-        /* Push it down slightly to visually center it against the text */
-        margin-top: 10px; 
-    }
-    
-    /* Make the Impact Score label tiny and gray */
-    .impact-label {
-        text-align: center;
-        font-size: 10px;
-        color: #888;
-        line-height: 1;
-        margin-top: -5px; /* Pull it closer to the ring */
-    }
-</style>
-""", unsafe_allow_html=True)
-
-# --- HELPER: MINIATURE RING CHART ---
+# --- HELPER: MINIATURE RING CHART (PURE ALTAIR) ---
 
 
 def make_impact_ring(score):
-    # Data: Score vs Rest
+    # 1. The Data for the Ring
     source = pd.DataFrame({
         "Category": ["Impact", "Rest"],
         "Value": [score, 10-score]
@@ -43,7 +21,7 @@ def make_impact_ring(score):
         theta=alt.Theta("Value", stack=True)
     )
 
-    # The Ring (Smaller Radius)
+    # 2. Layer 1: The Ring (Arc)
     pie = base.mark_arc(innerRadius=15, outerRadius=20).encode(
         color=alt.Color("Category",
                         scale=alt.Scale(domain=["Impact", "Rest"],
@@ -52,13 +30,29 @@ def make_impact_ring(score):
         order=alt.Order("Category", sort="descending")
     )
 
-    # The Text (Smaller Font)
-    text = base.mark_text(radius=0, size=12, color="#004225", fontStyle="bold", align="center", baseline="middle").encode(
+    # 3. Layer 2: The Score (Number in Center)
+    # We render this on top of the 'base' so it stays centered
+    text_score = base.mark_text(radius=0, size=12, color="#004225", fontStyle="bold").encode(
         text=alt.value(f"{score}")
     )
 
-    # Combine (Smaller Canvas)
-    return (pie + text).properties(width=50, height=50)
+    # 4. Layer 3: The Label (Subtitle)
+    # We create a new independent chart layer just for the "Impact Score" text
+    # This avoids parsing the text multiple times for each slice of the pie
+    label_df = pd.DataFrame({"label": ["Impact Score"]})
+    text_label = alt.Chart(label_df).mark_text(
+        align='center',
+        dy=32,           # Shift text down (pixels) to sit below the ring
+        size=8,
+        color="#888",
+        lineHeight=10    # Tighter line spacing if we split text (optional)
+    ).encode(
+        text='label'
+    )
+
+    # Combine all layers
+    # We increase the height (e.g. 75) to ensure the bottom label isn't cut off
+    return (pie + text_score + text_label).properties(width=50, height=75)
 
 
 # --- SIDEBAR ---
@@ -99,11 +93,12 @@ try:
                 st.markdown(f"🔗 [Read Full Paper]({paper['url']})")
 
             with col_chart:
+                # The label is now baked into the chart image itself
                 ring = make_impact_ring(paper['score'])
+
+                # We use use_container_width=True to let it center in the column
+                # The column is narrow (0.1), so it effectively centers it.
                 st.altair_chart(ring, use_container_width=True)
-                # Tighter HTML label
-                st.markdown(
-                    "<div class='impact-label'>Impact<br>Score</div>", unsafe_allow_html=True)
 
 except sqlite3.OperationalError:
     st.error("⚠️ Database not found.")
