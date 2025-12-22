@@ -140,19 +140,38 @@ def save_paper(paper_data, review_data, field):
         conn.close()
 
 
-def get_feed(field):
+def get_feed(target=None, limit=50):
+    """
+    Fetches high-impact papers based on varying filter levels.
+    target: Can be None (All), a list (Category), or a string (Specific Topic).
+    """
     conn = sqlite3.connect(DB_NAME)
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
 
-    # MODIFIED QUERY: Added "AND score >= 7"
-    c.execute('''
-        SELECT * FROM academic_papers 
-        WHERE field = ? AND score >= 7
-        ORDER BY published_date DESC 
-        LIMIT 20
-    ''', (field,))
+    base_query = "SELECT * FROM academic_papers WHERE score >= 7"
+    params = []
 
+    if target is None or target == "All":
+        # 1. FETCH EVERYTHING
+        query = f"{base_query} ORDER BY published_date DESC LIMIT ?"
+        params.append(limit)
+
+    elif isinstance(target, list):
+        # 2. FETCH CATEGORY (List of Topics)
+        # Create a string like "?, ?, ?, ?" based on list length
+        placeholders = ','.join('?' for _ in target)
+        query = f"{base_query} AND field IN ({placeholders}) ORDER BY published_date DESC LIMIT ?"
+        params.extend(target)
+        params.append(limit)
+
+    else:
+        # 3. FETCH SPECIFIC TOPIC (String)
+        query = f"{base_query} AND field = ? ORDER BY published_date DESC LIMIT ?"
+        params.append(target)
+        params.append(limit)
+
+    c.execute(query, tuple(params))
     rows = c.fetchall()
     conn.close()
     return rows
