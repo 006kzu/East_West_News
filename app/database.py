@@ -143,3 +143,45 @@ def get_global_news(limit=20):
     rows = c.fetchall()
     conn.close()
     return rows
+
+# In app/database.py
+
+
+def get_news_stats():
+    """Returns counts of articles in the DB."""
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    # Count total articles
+    c.execute("SELECT COUNT(*) FROM global_news")
+    total = c.fetchone()[0]
+    # Count today's articles
+    today = datetime.datetime.now().strftime("%Y-%m-%d")
+    c.execute("SELECT COUNT(*) FROM global_news WHERE added_date = ?", (today,))
+    today_count = c.fetchone()[0]
+    conn.close()
+    return total, today_count
+
+
+def get_news_by_date(date_str, region=None):
+    """Fetches news for a specific date, optionally filtered by region."""
+    conn = sqlite3.connect(DB_NAME)
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+
+    query = "SELECT * FROM global_news WHERE added_date = ?"
+    params = [date_str]
+
+    if region:
+        # We assume 'source' contains the region keywords we saved earlier
+        # Or we can filter loosely by source name for now
+        if region == "Russia":
+            query += " AND (source LIKE '%Kommersant%' OR region = 'Russia')"
+        elif region == "China":
+            query += " AND (source LIKE '%Xinhua%' OR region = 'China')"
+
+    query += " ORDER BY original_date DESC"
+
+    c.execute(query, params)
+    rows = c.fetchall()
+    conn.close()
+    return rows
