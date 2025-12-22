@@ -216,17 +216,45 @@ def save_news(article_data, analysis_text):
         conn.close()
 
 
-def get_global_news(limit=20):
-    """Fetches the latest global news for the frontend."""
+def get_global_news(source_filter=None, limit=50):
+    """
+    Fetches global news, optionally filtering by a specific source.
+    UPDATED: Now accepts 'source_filter' to support the UI pills.
+    """
     conn = sqlite3.connect(DB_NAME)
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
-    c.execute('SELECT * FROM global_news ORDER BY added_date DESC LIMIT ?', (limit,))
+
+    # Start with the base query
+    query = "SELECT * FROM global_news"
+    params = []
+
+    # Add the filter logic
+    if source_filter and source_filter != "All":
+        query += " WHERE source = ?"
+        params.append(source_filter)
+
+    # Add sorting and limit
+    query += " ORDER BY added_date DESC LIMIT ?"
+    params.append(limit)
+
+    c.execute(query, tuple(params))
     rows = c.fetchall()
     conn.close()
     return rows
 
-# In app/database.py
+
+def get_news_sources():
+    """
+    NEW: Returns a unique list of sources (e.g. ['China_Xinhua', 'Russia_Kommersant'])
+    Used to populate the filter buttons in the UI.
+    """
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    c.execute("SELECT DISTINCT source FROM global_news")
+    rows = c.fetchall()
+    conn.close()
+    return [row[0] for row in rows]
 
 
 def get_news_stats():

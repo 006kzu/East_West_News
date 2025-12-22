@@ -100,8 +100,9 @@ with col_left:
         else:
             st.info("System Offline. Run `python run_news.py` to ingest data.")
 
-        st.button("View Global Feed",
-                  use_container_width=True, key="btn_global")
+        # UPDATE THIS BUTTON:
+        if st.button("View Global Feed", width='stretch', key="btn_global"):
+            st.switch_page("pages/01_🌍_Global_Intelligence.py")
 
 # --- RIGHT COLUMN: ACADEMIC FEED ---
 with col_right:
@@ -123,5 +124,5 @@ with col_right:
             st.info("No papers found. Run `python run_academic.py`.")
 
         # This button could link to your pages/02_🎓_Academic_Feed.py
-        if st.button("View Academic Feed", use_container_width=True, key="btn_academic"):
+        if st.button("View Academic Feed", width='stretch', key="btn_academic"):
             st.switch_page("pages/02_🎓_Academic_Feed.py")

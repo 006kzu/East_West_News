@@ -115,7 +115,7 @@ try:
 
             with col_chart:
                 ring = make_impact_ring(paper['score'])
-                st.altair_chart(ring, use_container_width=True)
+                st.altair_chart(ring, width='stretch')
 
 except sqlite3.OperationalError:
     st.error("⚠️ Database connection failed. Ensure 'peripheral_news.db' exists.")
