@@ -44,6 +44,66 @@ def init_db():
 # 🎓 ACADEMIC FUNCTIONS
 # ==========================
 
+# ==========================
+# 📊 DASHBOARD METRICS
+# ==========================
+
+
+def get_dashboard_stats(target_date):
+    """
+    Returns the counts needed for the top dashboard metrics.
+    """
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+
+    # 1. Global News Stats
+    c.execute("SELECT COUNT(*) FROM global_news")
+    global_total = c.fetchone()[0]
+
+    c.execute("SELECT COUNT(*) FROM global_news WHERE added_date = ?",
+              (target_date,))
+    global_today = c.fetchone()[0]
+
+    # 2. Academic Stats
+    c.execute("SELECT COUNT(*) FROM academic_papers")
+    academic_total = c.fetchone()[0]
+
+    c.execute(
+        "SELECT COUNT(*) FROM academic_papers WHERE added_date = ?", (target_date,))
+    academic_today = c.fetchone()[0]
+
+    conn.close()
+
+    return {
+        "global_total": global_total,
+        "global_today": global_today,
+        "academic_total": academic_total,
+        "academic_today": academic_today
+    }
+
+
+def get_latest_academic_preview():
+    """Fetches the single most recent academic paper for the dashboard card."""
+    conn = sqlite3.connect(DB_NAME)
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    # Order by added_date so we see what the bot just found
+    c.execute("SELECT * FROM academic_papers ORDER BY added_date DESC LIMIT 1")
+    row = c.fetchone()
+    conn.close()
+    return row
+
+
+def get_latest_news_preview():
+    """Fetches the single most recent news article for the dashboard card."""
+    conn = sqlite3.connect(DB_NAME)
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    c.execute("SELECT * FROM global_news ORDER BY added_date DESC LIMIT 1")
+    row = c.fetchone()
+    conn.close()
+    return row
+
 
 def paper_exists(paper_id):
     conn = sqlite3.connect(DB_NAME)
@@ -80,16 +140,38 @@ def save_paper(paper_data, review_data, field):
         conn.close()
 
 
-def get_feed(field):
+def get_feed(target=None, limit=50):
+    """
+    Fetches high-impact papers based on varying filter levels.
+    target: Can be None (All), a list (Category), or a string (Specific Topic).
+    """
     conn = sqlite3.connect(DB_NAME)
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
-    c.execute('''
-        SELECT * FROM academic_papers 
-        WHERE field = ? 
-        ORDER BY published_date DESC 
-        LIMIT 20
-    ''', (field,))
+
+    base_query = "SELECT * FROM academic_papers WHERE score >= 7"
+    params = []
+
+    if target is None or target == "All":
+        # 1. FETCH EVERYTHING
+        query = f"{base_query} ORDER BY published_date DESC LIMIT ?"
+        params.append(limit)
+
+    elif isinstance(target, list):
+        # 2. FETCH CATEGORY (List of Topics)
+        # Create a string like "?, ?, ?, ?" based on list length
+        placeholders = ','.join('?' for _ in target)
+        query = f"{base_query} AND field IN ({placeholders}) ORDER BY published_date DESC LIMIT ?"
+        params.extend(target)
+        params.append(limit)
+
+    else:
+        # 3. FETCH SPECIFIC TOPIC (String)
+        query = f"{base_query} AND field = ? ORDER BY published_date DESC LIMIT ?"
+        params.append(target)
+        params.append(limit)
+
+    c.execute(query, tuple(params))
     rows = c.fetchall()
     conn.close()
     return rows

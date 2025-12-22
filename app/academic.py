@@ -72,23 +72,29 @@ def evaluate_paper(paper):
 
     venue = paper.get('venue') or "Unknown"
 
-    # --- MOCK MODE (Matches DB Schema) ---
-    if DEV_MODE:
-        return {
-            "score": 8,
-            "is_major": True,          # Fixed key name
-            # Fixed key name
-            "layman_summary": f"[MOCK] {paper['title'][:50]}...",
-            "category": "Dev Test"
-        }
-    # -------------------------------------
+    # ... (Keep your DEV_MODE check here) ...
+
+    # ... inside evaluate_paper function ...
 
     prompt = f"""
-    You are a science news editor. Write a clickable headline for this paper.
+    Act as a strict scientific reviewer AND an academic literature curator.
     
-    Title: {paper['title']}
-    Venue: {venue}
-    Abstract: {paper['abstract']}
+    1. ANALYZE: Rate this paper's innovation strictly (1-10).
+       - SCORE 1-5 (REJECT): Incremental updates, pure simulations, school projects, or reviews of old topics.
+       - SCORE 6 (CONSIDER): Good novelty, but likely not a game-changer. Minor improvements.
+       - SCORE 7 (VIP ENTRY): Strong contribution, validated results, distinct advancement in the field.
+       - SCORE 8-10 (VIP ELITE): Paradigm shifts, human clinical trials, 10x efficiency gains, or solving major open problems.
+       
+       *Bonus:* If Venue is {VIP_VENUES}, treat the claims with higher confidence.
+       
+    2. SUMMARIZE: Write a punchy, 1-sentence news headline (max 15 words) for a general researcher audience.
+    
+    Paper Data:
+    - Title: {paper['title']}
+    - Venue: {venue}
+    - Abstract: {paper['abstract']}
+    
+    Output JSON.
     """
 
     try:
