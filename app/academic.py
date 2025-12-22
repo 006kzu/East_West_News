@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # --- CONFIGURATION ---
-DEV_MODE = False  # Set to False since your API keys are working
+DEV_MODE = False
 # ---------------------
 
 client = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
@@ -22,13 +22,12 @@ VIP_VENUES = [
 
 
 class QuickPaperReview(BaseModel):
-    score: int = Field(description="Score 1-10 based on innovation.")
-    # RENAMED BACK TO MATCH DATABASE:
+    score: int = Field(
+        description="Score 1-10 based on wider population impact.")
     is_major: bool = Field(
-        description="True if from a top-tier journal or highly cited.")
-    # RENAMED BACK TO MATCH DATABASE:
+        description="True ONLY if the research fundamentally changes how we interact with the world.")
     layman_summary: str = Field(
-        description="A catchy, 1-sentence news-style headline.")
+        description="A catchy, 1-sentence news-style headline focusing on the real-world benefit.")
     category: str = Field(description="The specific sub-field.")
 
 
@@ -51,15 +50,13 @@ def fetch_with_retry(url, params, retries=5, backoff_factor=2):
 
 def fetch_latest_papers(topic="Artificial Intelligence", limit=20):
     url = "https://api.semanticscholar.org/graph/v1/paper/search"
-
-    # Calculate current year range (e.g., "2024-2025")
     current_year = datetime.datetime.now().year
     year_range = f"{current_year-1}-{current_year}"
 
     params = {
         "query": topic,
-        "year": year_range,           # <--- STRICT FILTER (Fixes the 2011 bug)
-        "sort": "publicationDate:desc",  # <--- Keeps sorting by newest
+        "year": year_range,
+        "sort": "publicationDate:desc",
         "fields": "title,abstract,url,publicationDate,venue,authors",
         "limit": limit
     }
@@ -72,22 +69,35 @@ def evaluate_paper(paper):
 
     venue = paper.get('venue') or "Unknown"
 
-    # ... (Keep your DEV_MODE check here) ...
-
-    # ... inside evaluate_paper function ...
-
     prompt = f"""
-    Act as a strict scientific reviewer AND an academic literature curator.
+    You are a ruthless Scientific Editor for "Peripheral News."
+    Your Goal: Prioritize the reader's time by filtering out insignificant research.
+
+    ### THE GOLDEN RULE OF SIGNIFICANCE
+    To determine if a paper is worth reading, you must ask this specific question:
+    "Does this impact affect the population OUTSIDE of this specific domain, or does it help experts in this domain DIRECTLY impact the outside population?"
+
+    ### SCORING RUBRIC (1-10)
     
-    1. ANALYZE: Rate this paper's innovation strictly (1-10).
-       - SCORE 1-5 (REJECT): Incremental updates, pure simulations, school projects, or reviews of old topics.
-       - SCORE 6 (CONSIDER): Good novelty, but likely not a game-changer. Minor improvements.
-       - SCORE 7 (VIP ENTRY): Strong contribution, validated results, distinct advancement in the field.
-       - SCORE 8-10 (VIP ELITE): Paradigm shifts, human clinical trials, 10x efficiency gains, or solving major open problems.
-       
-       *Bonus:* If Venue is {VIP_VENUES}, treat the claims with higher confidence.
-       
-    2. SUMMARIZE: Write a punchy, 1-sentence news headline (max 15 words) for a general researcher audience.
+    **SCORES 1-5: INSIGNIFICANT (REJECT)**
+    - Criteria: The impact is trapped inside the domain.
+    - Examples: Incremental tweaks to algorithms, pure simulations with no real-world tether, theoretical proofs without application, or student-level reviews.
+    - Action: If it doesn't pass the Golden Rule, give it a low score so it is filtered out.
+
+    **SCORE 6: DOMAIN RELEVANT (BORDERLINE)**
+    - Criteria: Solid science, but the downstream impact on humanity is vague or too distant.
+    
+    **SCORE 7: IMPACTFUL (PUBLISH)**
+    - Criteria: Clear potential to affect the outside world.
+    - Example: A new material that *could* make batteries 20% cheaper, or a drug target that *might* cure a rare disease.
+
+    **SCORES 8-10: TRANSFORMATIVE (MAJOR INNOVATION)**
+    - Criteria: A breakthrough that will undeniably change safety, health, energy, or understanding of the universe for the general public.
+    - Example: Research on Earth's core (like the Nature s41586-024-08322-y paper) that enables better earthquake prediction. This saves lives.
+    - Example: A fusion reactor achieving net gain. This changes energy forever.
+
+    ### YOUR TASK
+    Analyze the paper below. If it is "Insignificant," score it low (1-5). If it passes the Golden Rule, score it high (7+).
     
     Paper Data:
     - Title: {paper['title']}
